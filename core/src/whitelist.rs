@@ -4,8 +4,13 @@ use std::collections::HashSet;
 
 static IP_WHITELIST_PATTERNS: Lazy<Vec<Regex>> = Lazy::new(|| {
     vec![
+        // Protocol addresses
         Regex::new(r"^0\.0\.0\.0$").unwrap(),
         Regex::new(r"^255\.255\.255\.255$").unwrap(),
+        // RFC 1918 private IPv4 addresses
+        Regex::new(r"^10\.").unwrap(),
+        Regex::new(r"^172\.(1[6-9]|2[0-9]|3[01])\.").unwrap(),
+        Regex::new(r"^192\.168\.").unwrap(),
     ]
 });
 

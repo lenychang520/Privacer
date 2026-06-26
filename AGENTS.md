@@ -96,7 +96,7 @@ Pre-built in `vscode-extension/wasm/` — do not regen unless core changes.
 - Email with "at" bypass: `user at company dot com`
 
 ### Whitelisted (never filtered)
-- IPs: `0.0.0.0`, `255.255.255.255`
+- IPs: `0.0.0.0`, `255.255.255.255`, RFC 1918 (`10.x.x.x`, `172.16-31.x.x`, `192.168.x.x`)
 - Domains: `localhost`, `example.com`, `example.org`, `test.com`, `test.local`
 - Hostnames: `localhost`
 

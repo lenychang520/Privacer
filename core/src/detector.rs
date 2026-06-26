@@ -580,9 +580,20 @@ mod tests {
     #[test]
     fn test_ipv4_detection() {
         let d = detector();
-        let result = d.filter("My IP is 192.168.1.1");
+        let result = d.filter("My IP is 203.0.113.1");
         assert!(result.replacements > 0);
         assert!(result.text.contains("[IP]"));
+    }
+
+    #[test]
+    fn test_private_ip_not_filtered() {
+        let d = detector();
+        let result = d.filter("My IP is 192.168.1.1");
+        assert_eq!(result.replacements, 0);
+        let result2 = d.filter("My IP is 10.0.0.5");
+        assert_eq!(result2.replacements, 0);
+        let result3 = d.filter("My IP is 172.16.0.1");
+        assert_eq!(result3.replacements, 0);
     }
 
     #[test]
@@ -657,10 +668,10 @@ mod tests {
     #[test]
     fn test_scan_does_not_modify() {
         let d = detector();
-        let text = "My IP is 192.168.1.1";
+        let text = "My IP is 203.0.113.1";
         let matches = d.scan(text);
         assert!(!matches.is_empty());
-        assert!(text.contains("192.168.1.1"));
+        assert!(text.contains("203.0.113.1"));
     }
 
     // ── UUID ──
@@ -850,7 +861,7 @@ mod tests {
         let mut cfg = PrivacerConfig::default();
         cfg.placeholders.insert("ipv4".to_string(), "[HIDDEN_IP]".to_string());
         let d = PrivacyDetector::new(cfg);
-        let result = d.filter("IP: 192.168.1.1");
+        let result = d.filter("IP: 203.0.113.1");
         assert!(result.text.contains("[HIDDEN_IP]"));
     }
 
@@ -866,9 +877,9 @@ mod tests {
     #[test]
     fn test_whitelist_extra_ip() {
         let mut cfg = PrivacerConfig::default();
-        cfg.whitelist.ips.push("10.0.0.1".to_string());
+        cfg.whitelist.ips.push("100.64.0.1".to_string());
         let d = PrivacyDetector::new(cfg);
-        let result = d.filter("server 10.0.0.1");
+        let result = d.filter("server 100.64.0.1");
         assert_eq!(result.replacements, 0);
     }
 

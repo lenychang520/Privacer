@@ -240,17 +240,7 @@ export function activate(context: vscode.ExtensionContext) {
     }
 
     setupInterception();
-    vscode.window.showInformationMessage('Privacer: active — LLM requests are being filtered');
-
-    context.subscriptions.push(
-        vscode.commands.registerCommand('privacer.status', () => {
-            vscode.window.showInformationMessage(
-                privacerWasm
-                    ? 'Privacer: active — LLM requests are being filtered'
-                    : 'Privacer: WASM not loaded — filtering is inactive'
-            );
-        })
-    );
+    log('INFO', 'Extension active');
 }
 
 export function deactivate() {

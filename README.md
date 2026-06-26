@@ -92,6 +92,7 @@ The engine detects and redacts:
 ### Whitelisted values (never filtered)
 
 - `0.0.0.0`, `255.255.255.255`
+- RFC 1918 private IPv4 (`10.x.x.x`, `172.16-31.x.x`, `192.168.x.x`)
 - `localhost`, `example.com`, `example.org`, `test.com`
 - Common port numbers (22, 80, 443, 8080, etc.)
 
