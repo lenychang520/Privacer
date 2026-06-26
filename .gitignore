@@ -8,6 +8,11 @@
 # Rust build artifacts
 **/target/
 
+# VS Code extension build artifacts
+vscode-extension/extension.js
+vscode-extension/extension.js.map
+vscode-extension/*.vsix
+
 # Node.js
 node_modules/
 privacer-adapter/dist/

@@ -36,13 +36,15 @@ function log(level: string, msg: string, extra?: any) {
 
 let privacerWasm: any = null;
 
-async function loadWasm(context: vscode.ExtensionContext): Promise<void> {
+function loadWasmSync(context: vscode.ExtensionContext): boolean {
     try {
         const wasmDir = path.join(context.extensionPath, 'wasm');
         privacerWasm = require(wasmDir);
         log('INFO', `WASM loaded from ${wasmDir}`);
+        return true;
     } catch (e: any) {
         log('ERROR', `WASM load failed: ${e.message}`);
+        return false;
     }
 }
 
@@ -93,24 +95,17 @@ function filterJsonBody(body: string): { text: string; redacted: number } {
         const parsed = JSON.parse(body);
         let totalRedacted = 0;
 
-        // OpenAI / DeepSeek / Trae format
         if (parsed.messages && Array.isArray(parsed.messages)) {
             parsed.messages = parsed.messages.map((msg: any) => {
                 if (msg.role === 'user' && typeof msg.content === 'string') {
                     const r = filterText(msg.content);
-                    if (r.redacted > 0) {
-                        totalRedacted += r.redacted;
-                        return { ...msg, content: r.text };
-                    }
+                    if (r.redacted > 0) { totalRedacted += r.redacted; return { ...msg, content: r.text }; }
                 }
                 if (msg.role === 'user' && Array.isArray(msg.content)) {
                     msg.content = msg.content.map((part: any) => {
                         if (part.type === 'text' && typeof part.text === 'string') {
                             const r = filterText(part.text);
-                            if (r.redacted > 0) {
-                                totalRedacted += r.redacted;
-                                return { ...part, text: r.text };
-                            }
+                            if (r.redacted > 0) { totalRedacted += r.redacted; return { ...part, text: r.text }; }
                         }
                         return part;
                     });
@@ -119,28 +114,20 @@ function filterJsonBody(body: string): { text: string; redacted: number } {
             });
         }
 
-        // Anthropic format
         if (parsed.content && Array.isArray(parsed.content)) {
             parsed.content = parsed.content.map((part: any) => {
                 if (part.type === 'text' && typeof part.text === 'string') {
                     const r = filterText(part.text);
-                    if (r.redacted > 0) {
-                        totalRedacted += r.redacted;
-                        return { ...part, text: r.text };
-                    }
+                    if (r.redacted > 0) { totalRedacted += r.redacted; return { ...part, text: r.text }; }
                 }
                 return part;
             });
         }
 
-        // Trae flat fields
         for (const field of ['prompt', 'query', 'input', 'text']) {
             if (parsed[field] && typeof parsed[field] === 'string') {
                 const r = filterText(parsed[field]);
-                if (r.redacted > 0) {
-                    totalRedacted += r.redacted;
-                    parsed[field] = r.text;
-                }
+                if (r.redacted > 0) { totalRedacted += r.redacted; parsed[field] = r.text; }
             }
         }
 
@@ -149,7 +136,6 @@ function filterJsonBody(body: string): { text: string; redacted: number } {
         }
     } catch { }
 
-    // Not JSON — try raw
     const r = filterText(body);
     return r;
 }
@@ -159,7 +145,7 @@ function filterJsonBody(body: string): { text: string; redacted: number } {
 const requestBuffers = new WeakMap<http.ClientRequest, Buffer[]>();
 
 function setupInterception(): void {
-    // ── Patch http.ClientRequest ──
+    // http.ClientRequest
     originalHttpWrite = clientReqProto.write;
     originalHttpEnd = clientReqProto.end;
 
@@ -182,7 +168,7 @@ function setupInterception(): void {
         let buf = requestBuffers.get(this) || [];
         if (chunk) buf.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
         const fullBody = Buffer.concat(buf).toString('utf-8');
-        log('INFO', `http.Request intercepted: ${reqPath}, ${fullBody.length} bytes`);
+        log('INFO', `http.Request intercepted: ${reqPath}`);
         const { text: filteredBody, redacted } = filterJsonBody(fullBody);
         if (redacted > 0) {
             log('INFO', `http.Request: redacted ${redacted} item(s)`);
@@ -198,7 +184,7 @@ function setupInterception(): void {
     };
     log('INFO', 'http.ClientRequest patched');
 
-    // ── Patch globalThis.fetch ──
+    // globalThis.fetch
     originalFetch = globalThis.fetch;
     globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
         const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
@@ -210,9 +196,7 @@ function setupInterception(): void {
             const { text: filteredBody, redacted } = filterJsonBody(init.body);
             if (redacted > 0) {
                 log('INFO', `fetch: redacted ${redacted} item(s)`);
-                const newInit = { ...init, body: filteredBody };
-                const res = await originalFetch!(input, newInit);
-                return res;
+                return originalFetch!(input, { ...init, body: filteredBody });
             }
         }
         return originalFetch!(input, init);
@@ -233,42 +217,47 @@ function teardownInterception(): void {
         globalThis.fetch = originalFetch;
         originalFetch = null;
     }
-    logStream?.end();
-    logStream = null;
     log('INFO', 'patches removed');
 }
 
 // ── Extension lifecycle ────────────────────────────────────
 
+let activated = false;
+
 export function activate(context: vscode.ExtensionContext) {
     initLogger(context);
     log('INFO', 'Extension activating...');
 
-    loadWasm(context).then(() => {
-        if (!privacerWasm) {
-            log('WARN', 'WASM not loaded — filtering disabled');
-            return;
-        }
-        setupInterception();
-        vscode.window.showInformationMessage('Privacer: active — LLM requests are being filtered');
-    }).catch((e: any) => {
-        log('ERROR', `activation failed: ${e.message}`);
-    });
+    if (activated) {
+        log('WARN', 'Already activated, skipping');
+        return;
+    }
+    activated = true;
+
+    if (!loadWasmSync(context)) {
+        log('WARN', 'WASM not loaded — filtering disabled');
+        return;
+    }
+
+    setupInterception();
+    vscode.window.showInformationMessage('Privacer: active — LLM requests are being filtered');
 
     context.subscriptions.push(
         vscode.commands.registerCommand('privacer.status', () => {
-            const status = privacerWasm
-                ? 'Privacer: active — LLM requests are being filtered'
-                : 'Privacer: WASM not loaded — filtering is inactive';
-            vscode.window.showInformationMessage(status);
+            vscode.window.showInformationMessage(
+                privacerWasm
+                    ? 'Privacer: active — LLM requests are being filtered'
+                    : 'Privacer: WASM not loaded — filtering is inactive'
+            );
         })
     );
-
-    context.subscriptions.push({
-        dispose: () => { teardownInterception(); }
-    });
 }
 
 export function deactivate() {
-    teardownInterception();
+    if (activated) {
+        teardownInterception();
+        logStream?.end();
+        logStream = null;
+        activated = false;
+    }
 }
