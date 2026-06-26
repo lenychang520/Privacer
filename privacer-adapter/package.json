@@ -1,0 +1,16 @@
+{
+  "name": "privacer-adapter",
+  "version": "0.1.0",
+  "description": "Shared adapter layer for Privacer — load WASM, filter/scan text, logging",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "commonjs",
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "tsc"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.0",
+    "typescript": "^6.0.3"
+  }
+}

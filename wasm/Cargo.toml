@@ -1,0 +1,15 @@
+[package]
+name = "privacer-wasm"
+version = "0.1.0"
+edition = "2024"
+description = "Privacer WASM bindings"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+privacer-core = { path = "../core" }
+wasm-bindgen = "0.2"
+
+[package.metadata.wasm-pack]
+wasm-opt = false

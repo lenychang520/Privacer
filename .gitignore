@@ -1,0 +1,13 @@
+.hermes/
+**/plans/
+**/*plan*
+**/*.plan
+**/.privacer/
+.opencode/plugins/wasm/
+
+# Rust build artifacts
+**/target/
+
+# Node.js
+node_modules/
+privacer-adapter/dist/
