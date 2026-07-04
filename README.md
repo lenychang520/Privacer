@@ -50,14 +50,15 @@ Installed to `~/.config/opencode/plugins/privacer.js`. Hooks into every opencode
 bash scripts/setup-opencode-plugin.sh
 ```
 
-脚本会自动：
-1. 拷贝插件和 WASM 到 `~/.config/opencode/plugins/`
-2. 安装 `@opencode-ai/plugin` 依赖
+Here's the English translation:
 
-opencode 启动时会自动加载 `plugins/` 目录下的插件，无需手动改配置。
+The script will automatically:
+1. Copy the plugin and WASM to `~/.config/opencode/plugins/`
+2. Install the `@opencode-ai/plugin` dependency
 
-重启 opencode，验证过滤生效：
+When opencode starts, it will automatically load plugins from the `plugins/` directory, no manual configuration changes needed.
 
+Restart opencode to verify that the filtering takes effect:
 ```bash
 tail -f .privacer/logs/opencode-*.log
 # Expected: Plugin initializing → WASM loaded → Plugin ready
