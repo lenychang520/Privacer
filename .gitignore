@@ -3,7 +3,7 @@
 **/*plan*
 **/*.plan
 **/.privacer/
-.opencode/plugins/wasm/
+.opencode/plugins/
 
 # Rust build artifacts
 **/target/

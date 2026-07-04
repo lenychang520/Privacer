@@ -1,7 +1,10 @@
-const path = require('path')
-const fs = require('fs')
+import path from 'path'
+import fs from 'fs'
+import { fileURLToPath } from 'url'
+import { createRequire } from 'module'
 
-// ── Logger ──
+const _require = createRequire(import.meta.url)
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 function logDir() {
   return path.join(process.cwd(), '.privacer', 'logs')
@@ -31,22 +34,18 @@ function writeLog(level, msg, extra) {
   } catch { }
 }
 
-// ── WASM loader ──
-
 function loadWasm() {
   const candidates = []
   if (process.env.PRIVACER_WASM_DIR) {
     candidates.push(process.env.PRIVACER_WASM_DIR)
   }
   candidates.push(path.join(__dirname, 'wasm'))
-  candidates.push(path.join(__dirname, '..', '..', 'vscode-extension', 'wasm'))
-  candidates.push(path.join(__dirname, '..', 'wasm'))
 
   for (const dir of candidates) {
     const jsPath = path.join(dir, 'privacer_wasm.js')
     if (fs.existsSync(jsPath)) {
       try {
-        const mod = require(dir)
+        const mod = _require(dir)
         writeLog('INFO', `WASM loaded from ${dir}`)
         return mod
       } catch (e) {
@@ -57,8 +56,6 @@ function loadWasm() {
   writeLog('ERROR', 'WASM not found in any search path')
   return null
 }
-
-// ── Shared filter helper ──
 
 function filterText(text) {
   if (!wasm || typeof text !== 'string' || !text.trim()) return { text, redacted: 0 }
@@ -76,7 +73,6 @@ function filterParts(parts) {
   if (!parts || !parts.length) return 0
   let total = 0
   for (const part of parts) {
-    // Text parts
     if (part.type === 'text' && typeof part.text === 'string') {
       const r = filterText(part.text)
       if (r.redacted > 0) {
@@ -84,7 +80,6 @@ function filterParts(parts) {
         total += r.redacted
       }
     }
-    // Tool result parts — content may be nested
     if (part.type === 'tool_result') {
       if (typeof part.content === 'string') {
         const r = filterText(part.content)
@@ -105,8 +100,6 @@ function filterParts(parts) {
   return total
 }
 
-// ── Plugin export ──
-
 let wasm = null
 let entropyEnabled = true
 
@@ -121,7 +114,6 @@ export const PrivacerPlugin = async ({ project }) => {
   }
 
   return {
-    // Catch tool outputs before they enter the conversation
     "tool.execute.after": async (input, output) => {
       if (!wasm) return
       if (input.tool === 'read' && typeof output.output === 'string') {
@@ -136,7 +128,6 @@ export const PrivacerPlugin = async ({ project }) => {
       }
     },
 
-    // Catch everything in the chat before sending to LLM
     "experimental.chat.messages.transform": async (_input, output) => {
       if (!wasm) return
 

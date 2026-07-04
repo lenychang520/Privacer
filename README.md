@@ -6,22 +6,21 @@
 
 Privacer is a privacy filtering engine that can intercepts LLM/AI API requests and redacts sensitive information (API keys, passwords, tokens, IP addresses, emails, phone numbers, credit cards, SSH keys, etc.) before the data reaches external servers.
 
-The core engine is written in Rust and compiled to WebAssembly (WASM), allowing it to run inside any platform that supports WASM — VS Code extensions, CLI tools, Python plugins, and more.
+The core engine is written in Rust and compiled to WebAssembly (WASM), and ships as an **opencode plugin** that filters every LLM-bound message automatically.
 
 ## Architecture
 
 ```
                     ┌──────────────────────────┐
-    │    privacer-core          │
-    │   Rust + WASM (51 tests)  │
+                    │    privacer-core          │
+                    │   Rust + WASM (51 tests)  │
                     └──────────┬───────────────┘
                                │
-          ┌────────────────────┼────────────────────┐
-          ▼                    ▼                    ▼
-   ┌─────────────┐    ┌──────────────┐    ┌──────────────┐
-   │ VS Code Ext │    │ CLI Plugins  │    │ Python Plugins│
-   │ (Trae etc.) │    │ (Claude Code)│    │ (Hermes)     │
-   └─────────────┘    └──────────────┘    └──────────────┘
+                               ▼
+                    ┌──────────────────────┐
+                    │  opencode plugin     │
+                    │  (WASM via Node.js)  │
+                    └──────────────────────┘
 ```
 
 ### Core Engine (`core/`)
@@ -37,91 +36,89 @@ The core engine is written in Rust and compiled to WebAssembly (WASM), allowing 
 
 ### WASM Bindings (`wasm/`)
 
-Exports two functions for consumption by JS/TS/Python:
+Exports two functions for consumption by JS/TS:
 - `filter(text, enable_entropy) → { text, replacements }`
 - `scan(text, enable_entropy) → match_count`
 
-### VS Code Extension (`vscode-extension/`)
+### opencode Plugin (`scripts/privacer-plugin.js`)
 
-Packages the WASM core into a `.vsix` file installable on VS Code and its forks.
+Installed to `~/.config/opencode/plugins/privacer.js`. Hooks into every opencode LLM request and redacts sensitive data in-place.
+
+## Quick Start
+
+```bash
+bash scripts/setup-opencode-plugin.sh
+```
+
+脚本会自动：
+1. 拷贝插件和 WASM 到 `~/.config/opencode/plugins/`
+2. 安装 `@opencode-ai/plugin` 依赖
+
+opencode 启动时会自动加载 `plugins/` 目录下的插件，无需手动改配置。
+
+重启 opencode，验证过滤生效：
+
+```bash
+tail -f .privacer/logs/opencode-*.log
+# Expected: Plugin initializing → WASM loaded → Plugin ready
+```
 
 ## Platform Support
 
-| Platform | Interception Method | Status | Why |
-|----------|-------------------|--------|-----|
-| **Claude Code** | `UserPromptSubmit` hook | ✅ Ready | Native hook API — every prompt is filtered before reaching the LLM |
-| **Hermes Agent** | `ProviderProfile.prepare_messages()` | ✅ Ready | Official provider plugin interface |
-| **opencode** | Plugin system | 🔜 Next | Has native plugin support |
-| **VS Code (Copilot)** | Extension host monkey-patch | ⚠️ Partial | LM API goes through IPC, not all requests interceptable |
-| **Trae CN** | Extension (limited) | ❌ Blocked | AI requests go through `@aha-kit/ipc` (ZeroMQ) → separate subprocess → Chromium native net stack. Extension layer cannot reach them. |
-| **Cursor** | Extension (limited) | ❌ Likely blocked | Same architecture as Trae — VS Code fork with proprietary AI network stack |
-| **Windsurf** | Extension (limited) | ❌ Likely blocked | Same as above |
+| Platform | Status |
+|----------|--------|
+| **opencode** | ✅ Ready — native plugin, automatic filtering |
+| **Claude Code** | 🔜 Future |
+| **VS Code / Copilot** | 🔜 Future |
+| **Trae / Cursor / Windsurf** | ❌ Blocked — AI requests bypass Node.js extension host entirely |
 
-### Why VS Code forks (Trae/Cursor/Windsurf) are blocked
-
-These IDEs embed their AI chat in a multi-layer architecture that bypasses the Node.js extension host:
-
-1. **Webpack closure capture** — The AI extension bundles `require("http")` at build time, so monkey-patching `http.request` after the bundle loads has no effect.
-2. **`@aha-kit/ipc` (ZeroMQ)** — AI requests are sent via native IPC protocol to a separate subprocess, not through standard HTTP.
-3. **Chromium native net stack** — The subprocess uses a Rust native module (`@aha-kit/net` → ttnet) that talks directly to the OS network stack, completely bypassing Node.js.
-
-No VS Code extension API can intercept traffic at this layer. The only reliable method for these IDEs is an HTTP proxy (`http.proxy` setting), but that requires the user to configure a proxy address — which conflicts with the zero-config design goal.
+VS Code forks (Trae, Cursor, Windsurf) embed their AI chat in a multi-layer architecture that bypasses the Node.js extension host — Webpack closure capture, ZeroMQ IPC, and Chromium native net stack make interception from an extension impossible.
 
 ## Detection Capabilities
 
-The engine detects and redacts:
+| Category | Placeholder |
+|----------|-------------|
+| IP addresses (v4, v6, hex) | `[IP]` |
+| Emails | `[EMAIL]` |
+| Phone numbers (China, international) | `[PHONE]` |
+| API keys (sk-, pk-, Bearer) | `[API_KEY]` |
+| AWS access keys | `[AWS_KEY]` |
+| SSH keys (public/private blocks) | `[SSH_KEY]` |
+| GitHub tokens (ghp_, github_pat_) | `[GITHUB_TOKEN]` |
+| JWT tokens | `[JWT]` |
+| Credit cards (Luhn validated) | `[CARD]` |
+| Database connection URLs | `[DB_URL]` |
+| DB CLI commands | `[DB_CMD]` |
+| Credentials (password=, token=, API_KEY=) | `[CREDENTIAL]` |
+| US SSN | `[SSN]` |
+| China ID card | `[ID_CARD]` |
+| UUID (with/without hyphens) | `[UUID]` |
+| SHA hashes (64-char hex) | `[HASH]` |
+| High-entropy secrets (≥5.0 bits/char) | `[SECRET]` |
 
-| Category | Examples | Placeholder |
-|----------|---------|-------------|
-| IP addresses | `192.168.1.1`, `0x7f000001`, IPv6 | `[IP]` |
-| Emails | `user@company.com` | `[EMAIL]` |
-| Phone numbers | `13800138000`, `+1-555-1234567` | `[PHONE]` |
-| API keys | `sk-...`, `Bearer ...`, `AKIA...` | `[API_KEY]` |
-| SSH keys | `-----BEGIN RSA PRIVATE KEY-----` | `[SSH_KEY]` |
-| GitHub tokens | `ghp_...`, `github_pat_...` | `[GITHUB_TOKEN]` |
-| JWT tokens | `eyJ...` | `[JWT]` |
-| Credit cards | `4111 1111 1111 1111` (Luhn validated) | `[CARD]` |
-| Database URLs | `mysql://user:pass@host/db` | `[DB_URL]` |
-| Credentials | `password=secret123`, `token=abc456` | `[CREDENTIAL]` |
-| US SSN | `123-45-6789` | `[SSN]` |
-| China ID card | `110101199001011234` | `[ID_CARD]` |
-| UUID | `550e8400-e29b-41d4-a716-446655440000` | `[UUID]` |
-| SHA hashes | 64-char hex strings | `[HASH]` |
-| High-entropy secrets | Random strings with entropy ≥ 5.0 bits/char | `[SECRET]` |
-
-### Whitelisted values (never filtered)
+### Whitelisted (never filtered)
 
 - `0.0.0.0`, `255.255.255.255`
 - RFC 1918 private IPv4 (`10.x.x.x`, `172.16-31.x.x`, `192.168.x.x`)
 - `localhost`, `example.com`, `example.org`, `test.com`
-- Common port numbers (22, 80, 443, 8080, etc.)
 
 ## Build
 
 ```bash
-# Build Rust core
-cd core && cargo test    # 51/51 tests pass
-cd core && cargo build --release
+# Build & test core
+cd core && cargo test
 
-# Build WASM
+# Build WASM (requires wasm-pack)
 cd wasm && wasm-pack build --target nodejs --out-dir ../vscode-extension/wasm --no-opt
-
-# Package VS Code extension
-cd vscode-extension && npx tsc && npx @vscode/vsce package --allow-missing-repository
-# Output: privacer-0.1.0.vsix
 ```
 
 ## Tech Stack
 
-- **Core**: Rust 2024 edition, `fancy-regex` (lookaround support), `serde`, `unicode-normalization`
+- **Core**: Rust 2024 edition, `fancy-regex`, `serde`, `unicode-normalization`
 - **WASM**: `wasm-bindgen`, `wasm-pack`
-- **VS Code Extension**: TypeScript, Node.js WASM loader
-- **Python (Hermes)**: `wasmtime-py` for WASM loading
+- **Plugin**: JavaScript, Node.js WASM loader
+- **Platform**: opencode plugin system
 
 ## License
 
 Apache-2.0
-
-## Project Origin
-
-Privacer evolved from [llm-privacy-guard](https://github.com/lenychang520/llm-privacy-guard), a Python HTTP proxy-based privacy filter. The project pivoted from HTTP proxy to a Rust+WASM core with platform-native plugin distribution.
