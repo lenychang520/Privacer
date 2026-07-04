@@ -119,7 +119,3 @@ cd wasm && wasm-pack build --target nodejs --out-dir ../vscode-extension/wasm --
 - **WASM**: `wasm-bindgen`, `wasm-pack`
 - **Plugin**: JavaScript, Node.js WASM loader
 - **Platform**: opencode plugin system
-
-## License
-
-Apache-2.0
