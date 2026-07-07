@@ -49,7 +49,7 @@ Installed to `~/.config/opencode/plugins/privacer.js`. Hooks into every opencode
 One command, no clone needed:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/lenychang520/Privacer/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/lenychang520/Privacer/master/scripts/install.sh | bash
 ```
 
 Or from a local clone:

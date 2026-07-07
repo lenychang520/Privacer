@@ -2,30 +2,39 @@
 # Install Privacer opencode plugin — one command, works everywhere.
 #
 # Quick install (no clone needed):
-#   curl -fsSL https://raw.githubusercontent.com/lenychang520/Privacer/main/scripts/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/lenychang520/Privacer/master/scripts/install.sh | bash
 #
 # From local repo:
 #   bash scripts/install.sh
 set -euo pipefail
 
 REPO="lenychang520/Privacer"
-BRANCH="main"
+BRANCH="master"
 GITHUB_RAW="https://raw.githubusercontent.com/$REPO/$BRANCH"
 
-OPENCODE_CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
+# Respect OPENCODE_CONFIG_DIR (custom config dir), then XDG, then default
+OPENCODE_CONFIG="${OPENCODE_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/opencode}"
 PLUGIN_DIR="$OPENCODE_CONFIG/plugins"
 WASM_DIR="$PLUGIN_DIR/wasm"
 PACKAGE_JSON="$OPENCODE_CONFIG/package.json"
 
 echo "==> Installing Privacer plugin for opencode..."
+echo "    Config dir: $OPENCODE_CONFIG"
 
 # ── 1. Detect source (local repo vs remote) ─────────────────
-SCRIPT_DIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd || echo "")"
+# When piped through curl|bash, $0 is "bash" — not a file path.
+# Only use local mode if $0 is a real file with privacer-plugin.js next to it.
 MODE="remote"
-if [ -n "$SCRIPT_DIR" ] && [ -f "$SCRIPT_DIR/privacer-plugin.js" ]; then
-  LOCAL_WASM="$(cd "$SCRIPT_DIR/../vscode-extension/wasm" 2>/dev/null && pwd || echo "")"
-  if [ -n "$LOCAL_WASM" ] && [ -f "$LOCAL_WASM/privacer_wasm_bg.wasm" ]; then
-    MODE="local"
+SCRIPT_DIR=""
+if [ -f "$0" ] 2>/dev/null; then
+  CANDIDATE_DIR="$(cd "$(dirname "$0")" 2>/dev/null && pwd || echo "")"
+  if [ -n "$CANDIDATE_DIR" ] && [ -f "$CANDIDATE_DIR/privacer-plugin.js" ]; then
+    CANDIDATE_WASM="$(cd "$CANDIDATE_DIR/../vscode-extension/wasm" 2>/dev/null && pwd || echo "")"
+    if [ -n "$CANDIDATE_WASM" ] && [ -f "$CANDIDATE_WASM/privacer_wasm_bg.wasm" ]; then
+      MODE="local"
+      SCRIPT_DIR="$CANDIDATE_DIR"
+      LOCAL_WASM="$CANDIDATE_WASM"
+    fi
   fi
 fi
 echo "    Source: $MODE"

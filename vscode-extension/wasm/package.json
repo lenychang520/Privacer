@@ -1,0 +1,12 @@
+{
+  "name": "privacer-wasm",
+  "description": "Privacer WASM bindings",
+  "version": "0.1.0",
+  "files": [
+    "privacer_wasm_bg.wasm",
+    "privacer_wasm.js",
+    "privacer_wasm.d.ts"
+  ],
+  "main": "privacer_wasm.js",
+  "types": "privacer_wasm.d.ts"
+}

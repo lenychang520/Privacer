@@ -26,7 +26,7 @@ Privacer ships an opencode plugin that redacts sensitive data from all LLM-bound
 
 ```sh
 # Quick install (global — works in any project, no clone needed)
-curl -fsSL https://raw.githubusercontent.com/lenychang520/Privacer/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/lenychang520/Privacer/master/scripts/install.sh | bash
 
 # Or from local repo:
 bash scripts/install.sh
