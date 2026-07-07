@@ -46,22 +46,28 @@ Installed to `~/.config/opencode/plugins/privacer.js`. Hooks into every opencode
 
 ## Quick Start
 
+One command, no clone needed:
+
 ```bash
-bash scripts/setup-opencode-plugin.sh
+curl -fsSL https://raw.githubusercontent.com/lenychang520/Privacer/main/scripts/install.sh | bash
 ```
 
-Here's the English translation:
+Or from a local clone:
 
-The script will automatically:
-1. Copy the plugin and WASM to `~/.config/opencode/plugins/`
+```bash
+bash scripts/install.sh
+```
+
+The script will:
+1. Copy/download plugin + WASM engine to `~/.config/opencode/plugins/`
 2. Install the `@opencode-ai/plugin` dependency
+3. Verify the WASM engine loads and filters correctly
 
-When opencode starts, it will automatically load plugins from the `plugins/` directory, no manual configuration changes needed.
+Restart opencode, then verify filtering is active:
 
-Restart opencode to verify that the filtering takes effect:
 ```bash
 tail -f .privacer/logs/opencode-*.log
-# Expected: Plugin initializing → WASM loaded → Plugin ready
+# Expected: [INFO] Plugin initializing → WASM loaded → Plugin ready
 ```
 
 ## Platform Support
