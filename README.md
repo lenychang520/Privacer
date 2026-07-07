@@ -46,34 +46,56 @@ Installed to `~/.config/opencode/plugins/privacer.js`. Hooks into every opencode
 
 ## Quick Start
 
-One command, no clone needed:
+**Linux / macOS / WSL:**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/lenychang520/Privacer/master/scripts/install.sh | bash
 ```
 
+**Windows (PowerShell):**
+
+```powershell
+iex (irm https://raw.githubusercontent.com/lenychang520/Privacer/master/scripts/install.ps1)
+```
+
 Or from a local clone:
 
 ```bash
+# Linux / macOS / WSL
 bash scripts/install.sh
+
+# Windows PowerShell
+.\scripts\install.ps1
 ```
 
 The script will:
-1. Copy/download plugin + WASM engine to `~/.config/opencode/plugins/`
+1. Copy/download plugin + WASM engine to opencode's plugin directory
 2. Install the `@opencode-ai/plugin` dependency
 3. Verify the WASM engine loads and filters correctly
 
 Restart opencode, then verify filtering is active:
 
 ```bash
+# Linux / macOS / WSL
 tail -f .privacer/logs/opencode-*.log
+
+# Windows PowerShell
+Get-Content .privacer\logs\opencode-*.log -Wait
+
 # Expected: [INFO] Plugin initializing → WASM loaded → Plugin ready
 ```
 
 ## Platform Support
 
-| Platform | Status |
-|----------|--------|
+| OS | Status |
+|----|--------|
+| **Linux** | ✅ `bash scripts/install.sh` |
+| **macOS** | ✅ `bash scripts/install.sh` |
+| **Windows** | ✅ `.\scripts\install.ps1` (PowerShell) |
+| **WSL** | ✅ `bash scripts/install.sh` |
+
+| AI Tool | Status |
+|---------|--------|
 | **opencode** | ✅ Ready — native plugin, automatic filtering |
 | **Claude Code** | 🔜 Future |
 | **VS Code / Copilot** | 🔜 Future |

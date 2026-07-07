@@ -25,11 +25,15 @@ vscode-extension/  TypeScript VS Code extension (CommonJS, tsc compiles src/ →
 Privacer ships an opencode plugin that redacts sensitive data from all LLM-bound messages across every project.
 
 ```sh
-# Quick install (global — works in any project, no clone needed)
+# Quick install — Linux / macOS / WSL (no clone needed)
 curl -fsSL https://raw.githubusercontent.com/lenychang520/Privacer/master/scripts/install.sh | bash
 
+# Quick install — Windows PowerShell (no clone needed)
+iex (irm https://raw.githubusercontent.com/lenychang520/Privacer/master/scripts/install.ps1)
+
 # Or from local repo:
-bash scripts/install.sh
+bash scripts/install.sh        # Linux / macOS / WSL
+.\scripts\install.ps1          # Windows PowerShell
 
 # Restart opencode, then verify:
 tail -f .privacer/logs/opencode-*.log
