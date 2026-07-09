@@ -6,8 +6,9 @@ import { createRequire } from 'module'
 const _require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
+let projectDir = null
 function logDir() {
-  return path.join(process.cwd(), '.privacer', 'logs')
+  return path.join(projectDir || process.cwd(), '.privacer', 'logs')
 }
 
 function ensureDir(dir) {
@@ -62,7 +63,9 @@ function filterText(text) {
   try {
     const result = wasm.filter(text, entropyEnabled)
     const redacted = result.replacements()
-    return { text: redacted > 0 ? result.text() : text, redacted }
+    const out = redacted > 0 ? result.text() : text
+    try { result.free() } catch { }
+    return { text: out, redacted }
   } catch (e) {
     writeLog('ERROR', `Filter failed: ${e.message}`)
     return { text, redacted: 0 }
@@ -80,20 +83,34 @@ function filterParts(parts) {
         total += r.redacted
       }
     }
-    if (part.type === 'tool_result') {
-      if (typeof part.content === 'string') {
-        const r = filterText(part.content)
+    if (part.type === 'reasoning' && typeof part.text === 'string') {
+      const r = filterText(part.text)
+      if (r.redacted > 0) {
+        part.text = r.text
+        total += r.redacted
+      }
+    }
+    if (part.type === 'tool' && part.state) {
+      if (typeof part.state.output === 'string') {
+        const r = filterText(part.state.output)
         if (r.redacted > 0) {
-          part.content = r.text
+          part.state.output = r.text
           total += r.redacted
         }
       }
-      if (typeof part.text === 'string') {
-        const r = filterText(part.text)
+      if (typeof part.state.error === 'string') {
+        const r = filterText(part.state.error)
         if (r.redacted > 0) {
-          part.text = r.text
+          part.state.error = r.text
           total += r.redacted
         }
+      }
+    }
+    if (part.type === 'file' && part.source && part.source.text && typeof part.source.text.value === 'string') {
+      const r = filterText(part.source.text.value)
+      if (r.redacted > 0) {
+        part.source.text.value = r.text
+        total += r.redacted
       }
     }
   }
@@ -101,9 +118,10 @@ function filterParts(parts) {
 }
 
 let wasm = null
-let entropyEnabled = true
+let entropyEnabled = process.env.PRIVACER_ENTROPY !== 'false'
 
-export const PrivacerPlugin = async ({ project }) => {
+export const PrivacerPlugin = async ({ project, directory }) => {
+  projectDir = directory || project?.path || process.cwd()
   writeLog('INFO', `Plugin initializing, project: ${project?.name || 'unknown'}`)
   wasm = loadWasm()
 
@@ -116,7 +134,7 @@ export const PrivacerPlugin = async ({ project }) => {
   return {
     "tool.execute.after": async (input, output) => {
       if (!wasm) return
-      if (input.tool === 'read' && typeof output.output === 'string') {
+      if (typeof output.output === 'string') {
         const r = filterText(output.output)
         if (r.redacted > 0) {
           output.output = r.text
@@ -139,11 +157,20 @@ export const PrivacerPlugin = async ({ project }) => {
       for (const msg of messages) {
         totalRedacted += filterParts(msg.parts)
 
-        if (msg.info && typeof msg.info.content === 'string') {
-          const r = filterText(msg.info.content)
-          if (r.redacted > 0) {
-            msg.info.content = r.text
-            totalRedacted += r.redacted
+        if (msg.info) {
+          if (typeof msg.info.system === 'string') {
+            const r = filterText(msg.info.system)
+            if (r.redacted > 0) {
+              msg.info.system = r.text
+              totalRedacted += r.redacted
+            }
+          }
+          if (msg.info.summary && typeof msg.info.summary.body === 'string') {
+            const r = filterText(msg.info.summary.body)
+            if (r.redacted > 0) {
+              msg.info.summary.body = r.text
+              totalRedacted += r.redacted
+            }
           }
         }
       }
