@@ -6,7 +6,7 @@
 
 Privacer is a privacy filtering engine that can intercepts LLM/AI API requests and redacts sensitive information (API keys, passwords, tokens, IP addresses, emails, phone numbers, credit cards, SSH keys, etc.) before the data reaches external servers.
 
-The core engine is written in Rust and compiled to WebAssembly (WASM), and ships as an **opencode plugin** that filters every LLM-bound message automatically.
+The core engine is written in Rust and compiled to WebAssembly (WASM), and ships as an **opencode plugin** that can filters every LLM-bound message automatically.
 
 ## Architecture
 
